@@ -1,10 +1,16 @@
 use axum::{extract::Query, response::Redirect, routing::get, Router};
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct QueryParams {
     q: String,
+}
+
+lazy_static! {
+    static ref RE_G: Regex = Regex::new("url=([^']+)").unwrap();
+    static ref RE_MAIN: Regex = Regex::new("https%3A%2F%2F([^&]+(?:&[^r]+)*)").unwrap();
 }
 
 #[tokio::main]
@@ -26,15 +32,14 @@ async fn root(Query(params): Query<QueryParams>) -> Redirect {
 }
 
 async fn get_bang(query: String) -> anyhow::Result<String> {
-    let re_first: Regex = Regex::new("url=([^']+)")?;
-    let re_last = Regex::new("https%3A%2F%2F([^&]+(?:&[^r]+)*)")?;
-    let response = &reqwest::get(
-        "https://duckduckgo.com/?q=".to_string() + &urlencoding::encode(&query).into_owned(),
-    )
+    let response = &reqwest::get(format!(
+        "https://duckduckgo.com/?q={}",
+        urlencoding::encode(&query).into_owned()
+    ))
     .await?
     .text()
     .await?;
-    let mut url = re_first
+    let mut url = RE_G
         .captures(response)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_owned())
@@ -42,7 +47,7 @@ async fn get_bang(query: String) -> anyhow::Result<String> {
     if url.starts_with("/l/?uddg=") {
         url = urlencoding::decode(&format!(
             "https://{}",
-            re_last
+            RE_MAIN
                 .captures(url.as_str())
                 .and_then(|c| c.get(1))
                 .map(|m| m.as_str())

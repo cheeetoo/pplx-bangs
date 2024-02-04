@@ -13,11 +13,10 @@ lazy_static! {
     static ref RE_MAIN: Regex = Regex::new("https%3A%2F%2F([^&]+(?:&[^r]+)*)").unwrap();
 }
 
-#[tokio::main]
-async fn main() {
+#[shuttle_runtime::main]
+async fn main() -> shuttle_axum::ShuttleAxum {
     let app = Router::new().route("/", get(root));
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3030").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    Ok(app.into())
 }
 
 async fn root(Query(params): Query<QueryParams>) -> Redirect {
